@@ -1,0 +1,29 @@
+# Optional: deploy standalone app `project-dri1j` to the Vercel project (e.g. project-dri1j on team magic-mobile).
+# If the same repo is already connected in the Vercel dashboard (Settings → Git), Vercel
+# will deploy on every push—do not also enable `on: push` here or you will get duplicate builds.
+# Set the Vercel project Root Directory to `project-dri1j` (this folder is the full Next app).
+#
+# Required repository secrets (Vercel → team / project → Settings):
+#   VERCEL_TOKEN         — https://vercel.com/account/tokens
+#   VERCEL_ORG_ID        — Team settings → General (Team ID)
+#   VERCEL_PROJECT_ID    — Project settings → General (Project ID)
+#
+# Run: Actions → "Vercel — project-dri1j" → Run workflow
+
+name: Vercel — project-dri1j
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (production)
+        working-directory: project-dri1j
+        run: npx vercel@latest deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}

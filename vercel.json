@@ -1,7 +1,6 @@
 {
   "version": 2,
   "name": "true-talk",
-  "ignore": ["shop-crazy-market/**"],
   "builds": [
     {
       "src": "package.json",

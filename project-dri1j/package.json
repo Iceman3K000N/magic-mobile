@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:3001": "next dev -p 3001",
+    "check-env": "node scripts/check-env.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

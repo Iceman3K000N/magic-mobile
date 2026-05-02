@@ -119,7 +119,7 @@ function isMissingTableError(err: unknown, tableName: string): boolean {
   const o = err as Record<string, unknown>;
   const code = typeof o.code === "string" ? o.code : "";
   const msg = typeof o.message === "string" ? o.message : "";
-  return code === "PGRST205" && msg.includes(tableName);
+  return code === "PGRST205" && msg.includes(`'public.${tableName}'`);
 }
 
 export default function PortalClient({ view }: { view: PortalView }) {
@@ -201,7 +201,14 @@ export default function PortalClient({ view }: { view: PortalView }) {
 
     const profileRow = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
 
-    if (profileRow.error) throw new Error(formatClientError(profileRow.error));
+    if (profileRow.error) {
+      if (isMissingTableError(profileRow.error, "profiles")) {
+        throw new Error(
+          "The `profiles` table is missing. In Supabase → SQL Editor, run `project-dri1j/supabase/magic_mobile_schema.sql`, then run `select pg_notify('pgrst', 'reload schema');`.",
+        );
+      }
+      throw new Error(formatClientError(profileRow.error));
+    }
 
     let currentProfile = profileRow.data as ProfileRecord | null;
 

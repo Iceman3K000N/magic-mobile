@@ -297,7 +297,17 @@ export default function MagicHubClient({
     let profileRow: ProfileRecord | null = null;
     try {
       const { data: p, error: pe } = await supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", authUserId).maybeSingle();
-      if (pe) throw pe;
+      if (pe) {
+        if (isMissingTableError(pe, "profiles")) {
+          setLoadError(
+            "Database setup incomplete: the `profiles` table was not found. In Supabase → SQL Editor, run `project-dri1j/supabase/magic_mobile_schema.sql`, then run `select pg_notify('pgrst', 'reload schema');` and refresh.",
+          );
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        throw pe;
+      }
       profileRow = p as ProfileRecord | null;
       if (!profileRow) {
         setLoadError("No profile found for this account.");

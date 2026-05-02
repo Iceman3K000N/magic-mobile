@@ -45,3 +45,6 @@ next-env.d.ts
 # Local Netlify folder
 .netlify
 dj-pro-software/
+
+# Standalone clone at repo root only (do not ignore project-dri1j/app/magic-mobile routes)
+/magic-mobile/

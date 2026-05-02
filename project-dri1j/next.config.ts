@@ -1,13 +1,19 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import { buildConnectSrc } from "./lib/csp-connect-src";
 
+/** Absolute app root — must match `turbopack.root` and `outputFileTracingRoot` or Next warns on Vercel. */
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
+
 const nextConfig: NextConfig = {
   /**
-   * Monorepo: parent + app each have a lockfile; Next otherwise guesses the wrong
-   * workspace root. Use the app directory (this folder), works on Vercel + local.
+   * Monorepo: parent may have a lockfile; Next/Vercel otherwise infer different roots for
+   * tracing vs Turbopack. Pin both to this app directory.
    */
+  outputFileTracingRoot: appRoot,
   turbopack: {
-    root: ".",
+    root: appRoot,
   },
   reactStrictMode: true,
   /** Avoid `redirect()` in `app/magichub/page.tsx` — on Next 16 + Turbopack it surfaces as a fake “render error” and breaks `/magichub`. */

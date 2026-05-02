@@ -1005,7 +1005,7 @@ export default function PortalClient({ view }: { view: PortalView }) {
             />
             <span className="text-xl font-semibold tracking-tight text-white">Magic Mobile</span>
           </div>
-          <h1 className="text-center text-2xl font-semibold text-white">Sales Consultant Portal</h1>
+          <h1 className="text-center text-2xl font-semibold text-white">Magic Hub Portal</h1>
           <p className="mt-2 text-center text-sm text-zinc-400">Sign in to track leads, sales, and commissions.</p>
 
           {authMode === "login" ? (

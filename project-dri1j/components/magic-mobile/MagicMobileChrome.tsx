@@ -151,7 +151,7 @@ export function MagicMobileDrawer({
             <IconZap className="h-7 w-7 text-purple-500" />
             <div>
               <p className="text-base font-semibold text-white">Magic Mobile</p>
-              <p className="text-xs text-zinc-500">Sales Consultant Portal</p>
+              <p className="text-xs text-zinc-500">Magic Hub Portal</p>
             </div>
           </div>
         </div>

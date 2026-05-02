@@ -62,7 +62,7 @@ import {
   hubInputClass,
   MagicHubShell,
 } from "@/components/magichub/MagicHubShell";
-import { AdminAreaTabs } from "@/components/magic-mobile/AdminAreaTabs";
+import { AdminAreaTabs } from "@/components/magichub/AdminAreaTabs";
 import { AdminTeamApprovals } from "@/components/magichub/manager/AdminTeamApprovals";
 import type { HubConsultantRequest } from "@/lib/magichub-team";
 import { ManagerHubChrome } from "@/components/magichub/manager/ManagerHubChrome";
@@ -931,7 +931,7 @@ export default function MagicHubClient({
 
       {canManage && view !== "saleWorkflow" && view !== "pad" ? (
         <div className="mb-5">
-          <AdminAreaTabs />
+          <AdminAreaTabs isAdmin={isAdmin} managerLimited={profile.role === "sale_manager" && !isAdmin} />
         </div>
       ) : null}
 

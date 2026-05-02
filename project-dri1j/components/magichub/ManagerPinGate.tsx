@@ -128,7 +128,14 @@ export function ManagerPinProvider({
   }, [enabled, supabase]);
 
   useEffect(() => {
-    void refreshPinStatus();
+    let cancelled = false;
+    const id = window.setTimeout(() => {
+      if (!cancelled) void refreshPinStatus();
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
   }, [refreshPinStatus]);
 
   const ensureUnlocked = useCallback(async (opts?: EnsurePinOptions): Promise<boolean> => {
@@ -294,8 +301,8 @@ export function ManagerPinProvider({
 
 /** Shown on Profile for PIN-eligible accounts (wrap with `ManagerPinProvider` + `enabled` when `canUseManagerPin`). */
 export function ProfilePinHelp({ enabled }: { enabled: boolean }) {
-  if (!enabled) return null;
   const { needsSetup, pinLoading, pinStatusError, refreshPinStatus } = useManagerPin();
+  if (!enabled) return null;
   return (
     <div className="mt-6 rounded-xl border border-zinc-700 bg-zinc-900/40 p-4">
       <h3 className="text-sm font-semibold text-white">4-digit PIN</h3>

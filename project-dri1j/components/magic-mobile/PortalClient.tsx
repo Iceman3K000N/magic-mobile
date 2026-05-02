@@ -32,6 +32,7 @@ import {
   ProfileRecord,
   TrainingRecord,
 } from "@/lib/magic-mobile";
+import { isMissingPublicTableError } from "@/lib/postgrest-errors";
 
 type PortalView =
   | "login"
@@ -114,14 +115,6 @@ function formatClientError(err: unknown): string {
   }
 }
 
-function isMissingTableError(err: unknown, tableName: string): boolean {
-  if (!err || typeof err !== "object") return false;
-  const o = err as Record<string, unknown>;
-  const code = typeof o.code === "string" ? o.code : "";
-  const msg = typeof o.message === "string" ? o.message : "";
-  return code === "PGRST205" && msg.includes(`'public.${tableName}'`);
-}
-
 export default function PortalClient({ view }: { view: PortalView }) {
   const isClient = useIsClient();
   const searchParams = useSearchParams();
@@ -202,9 +195,9 @@ export default function PortalClient({ view }: { view: PortalView }) {
     const profileRow = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
 
     if (profileRow.error) {
-      if (isMissingTableError(profileRow.error, "profiles")) {
+      if (isMissingPublicTableError(profileRow.error, "profiles")) {
         throw new Error(
-          "The `profiles` table is missing. In Supabase → SQL Editor, run `project-dri1j/supabase/magic_mobile_schema.sql`, then run `select pg_notify('pgrst', 'reload schema');`.",
+          "PostgREST cannot see public.profiles: env NEXT_PUBLIC_SUPABASE_URL must match the Supabase project where you ran SQL. Run project-dri1j/supabase/magic_mobile_schema.sql there, then select pg_notify('pgrst', 'reload schema'); Visit /api/health/supabase on this site if SUPABASE_SERVICE_ROLE_KEY is set.",
         );
       }
       throw new Error(formatClientError(profileRow.error));
@@ -294,7 +287,7 @@ export default function PortalClient({ view }: { view: PortalView }) {
           .order("created_at", { ascending: false })
           .limit(20);
         if (auditQuery.error) {
-          if (isMissingTableError(auditQuery.error, "admin_audit_logs")) {
+          if (isMissingPublicTableError(auditQuery.error, "admin_audit_logs")) {
             setAuditLogs([]);
           } else {
             throw new Error(formatClientError(auditQuery.error));
@@ -579,7 +572,7 @@ export default function PortalClient({ view }: { view: PortalView }) {
       target_id: targetId,
       metadata,
     });
-    if (error && !isMissingTableError(error, "admin_audit_logs")) {
+    if (error && !isMissingPublicTableError(error, "admin_audit_logs")) {
       // Keep user flow working; surface non-schema problems for visibility.
       setStatusMessage(`Audit log write failed: ${formatClientError(error)}`);
     }
@@ -598,7 +591,7 @@ export default function PortalClient({ view }: { view: PortalView }) {
       event_type: eventType,
       payload,
     });
-    if (error && !isMissingTableError(error, "notification_events")) {
+    if (error && !isMissingPublicTableError(error, "notification_events")) {
       setStatusMessage(`Notification queue failed: ${formatClientError(error)}`);
     }
   }

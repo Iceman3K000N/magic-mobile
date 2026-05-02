@@ -26,6 +26,7 @@ import {
   planMonthlyRecurringAmount,
 } from "@/lib/magichub-catalog";
 import { insertHubAuditLog } from "@/lib/magichub-audit";
+import { isMissingPublicTableError } from "@/lib/postgrest-errors";
 import { canUseManagerPin } from "@/lib/magichub-pin-api-auth";
 import { aggregateCommissionPayoutDashboard, type CommissionPayoutDashboardMetrics } from "@/lib/magichub-commission-payout";
 import {
@@ -136,13 +137,6 @@ function formatClientError(err: unknown): string {
 }
 
 const LEAD_STATUSES: LeadStatus[] = ["New", "Contacted", "Closed", "Lost"];
-function isMissingTableError(err: unknown, tableName: string): boolean {
-  if (!err || typeof err !== "object") return false;
-  const o = err as Record<string, unknown>;
-  const code = typeof o.code === "string" ? o.code : "";
-  const msg = typeof o.message === "string" ? o.message : "";
-  return code === "PGRST205" && msg.includes(`'public.${tableName}'`);
-}
 
 type HubSupabaseClient = NonNullable<ReturnType<typeof getSupabaseBrowserClient>>;
 
@@ -298,9 +292,9 @@ export default function MagicHubClient({
     try {
       const { data: p, error: pe } = await supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", authUserId).maybeSingle();
       if (pe) {
-        if (isMissingTableError(pe, "profiles")) {
+        if (isMissingPublicTableError(pe, "profiles")) {
           setLoadError(
-            "Database setup incomplete: the `profiles` table was not found. In Supabase → SQL Editor, run `project-dri1j/supabase/magic_mobile_schema.sql`, then run `select pg_notify('pgrst', 'reload schema');` and refresh.",
+            "Database setup incomplete: PostgREST cannot see `public.profiles`. Confirm Vercel/local env NEXT_PUBLIC_SUPABASE_URL matches the Supabase project where you ran SQL. In that project: SQL Editor → run project-dri1j/supabase/magic_mobile_schema.sql → then select pg_notify('pgrst', 'reload schema'); Open /api/health/supabase on this deployment (set SUPABASE_SERVICE_ROLE_KEY on Vercel) to verify.",
           );
           setProfile(null);
           setLoading(false);
@@ -347,7 +341,7 @@ export default function MagicHubClient({
         ? await commQuery
         : await commQuery.eq("contractor_id", authUserId);
       if (commErr) {
-        if (isMissingTableError(commErr, "commissions")) {
+        if (isMissingPublicTableError(commErr, "commissions")) {
           setCommissions([]);
           optionalWarnings.push("commissions");
         } else {
@@ -359,7 +353,7 @@ export default function MagicHubClient({
 
       const invRes = await supabase.from("inventory").select("*").order("created_at", { ascending: false });
       if (invRes.error) {
-        if (isMissingTableError(invRes.error, "inventory")) {
+        if (isMissingPublicTableError(invRes.error, "inventory")) {
           setInventory([]);
           optionalWarnings.push("inventory");
         } else {
@@ -372,7 +366,7 @@ export default function MagicHubClient({
       const saleQuery = supabase.from("sales").select("*").order("created_at", { ascending: false });
       const saleRes = manage ? await saleQuery : await saleQuery.eq("contractor_id", authUserId);
       if (saleRes.error) {
-        if (isMissingTableError(saleRes.error, "sales")) {
+        if (isMissingPublicTableError(saleRes.error, "sales")) {
           setSales([]);
           optionalWarnings.push("sales");
         } else {
@@ -385,7 +379,7 @@ export default function MagicHubClient({
       const reqQuery = supabase.from("hub_consultant_requests").select("*").order("created_at", { ascending: false });
       const reqRes = manage ? await reqQuery : await reqQuery.eq("manager_id", authUserId);
       if (reqRes.error) {
-        if (isMissingTableError(reqRes.error, "hub_consultant_requests")) {
+        if (isMissingPublicTableError(reqRes.error, "hub_consultant_requests")) {
           setTeamRequests([]);
           if (view === "adminTeam") optionalWarnings.push("hub_consultant_requests");
         } else {

@@ -44,6 +44,7 @@ import { SignaturePad } from "@/components/magichub/workflow/SignaturePad";
 import { PlanComparisonCards } from "@/components/magichub/MagicMobilePlans";
 import { useManagerPin } from "@/components/magichub/ManagerPinGate";
 import { canUseManagerPin } from "@/lib/magichub-pin-api-auth";
+import { isMissingPublicTableError } from "@/lib/postgrest-errors";
 
 const BRANDS = ["Apple", "Samsung", "Google", "Motorola", "Other"] as const;
 
@@ -56,14 +57,6 @@ function formatClientError(err: unknown): string {
     return [msg, code && `(${code})`].filter(Boolean).join(" ");
   }
   return String(err);
-}
-
-function isMissingTableError(err: unknown, tableName: string): boolean {
-  if (!err || typeof err !== "object") return false;
-  const o = err as Record<string, unknown>;
-  const code = typeof o.code === "string" ? o.code : "";
-  const msg = typeof o.message === "string" ? o.message : "";
-  return code === "PGRST205" && msg.includes(`'public.${tableName}'`);
 }
 
 export function SaleWorkflowClient({
@@ -149,7 +142,7 @@ export function SaleWorkflowClient({
             .eq("contractor_id", profile.id)
             .maybeSingle();
           if (cancelled) return;
-          if (error && !isMissingTableError(error, "hub_quotes")) return;
+          if (error && !isMissingPublicTableError(error, "hub_quotes")) return;
           if (data?.payload && typeof data.payload === "object") {
             setQuoteId(data.id);
             const merged = { ...emptySaleDraft(), ...(data.payload as SaleWorkflowDraft) };
@@ -173,7 +166,7 @@ export function SaleWorkflowClient({
           .limit(1)
           .maybeSingle();
         if (cancelled) return;
-        if (error && !isMissingTableError(error, "hub_quotes")) return;
+        if (error && !isMissingPublicTableError(error, "hub_quotes")) return;
         if (data?.payload && typeof data.payload === "object") {
           setQuoteId(data.id);
           const merged = { ...emptySaleDraft(), ...(data.payload as SaleWorkflowDraft) };
@@ -227,11 +220,11 @@ export function SaleWorkflowClient({
         };
         if (quoteId) {
           const { error } = await supabase.from("hub_quotes").update(row).eq("id", quoteId);
-          if (error && !isMissingTableError(error, "hub_quotes")) console.warn(error);
+          if (error && !isMissingPublicTableError(error, "hub_quotes")) console.warn(error);
         } else {
           const { data, error } = await supabase.from("hub_quotes").insert(row).select("id").single();
           if (!error && data?.id) setQuoteId(data.id);
-          else if (error && !isMissingTableError(error, "hub_quotes")) console.warn(error);
+          else if (error && !isMissingPublicTableError(error, "hub_quotes")) console.warn(error);
         }
       })();
     }, 800);

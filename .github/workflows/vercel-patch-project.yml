@@ -1,0 +1,49 @@
+# Sets monorepo Root Directory + Next.js framework on Vercel project `project-dri1j`.
+# Requires one repo secret: VERCEL_TOKEN (https://vercel.com/account/tokens)
+#
+# Run: Actions → "Vercel — patch project settings" → Run workflow
+
+name: Vercel — patch project settings
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+      PROJECT_ID: prj_NoNye1rL70cnF4LSG5GWWXUAjn0L
+      TEAM_SLUG: magic-mobile
+      ROOT_DIRECTORY: project-dri1j
+    steps:
+      - name: Patch Vercel project (root directory + Next.js)
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error::Add repository secret VERCEL_TOKEN (Vercel → Account → Tokens)."
+            exit 1
+          fi
+
+          TEAM_ID="${VERCEL_TEAM_ID:-}"
+          if [ -z "$TEAM_ID" ]; then
+            TEAM_ID="$(curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v2/teams" \
+              | jq -r --arg s "$TEAM_SLUG" '.teams[] | select(.slug==$s) | .id' \
+              | head -n1)"
+          fi
+
+          if [ -z "$TEAM_ID" ] || [ "$TEAM_ID" = "null" ]; then
+            echo "::error::Could not resolve team id for slug '$TEAM_SLUG'. Optionally add secret VERCEL_TEAM_ID."
+            exit 1
+          fi
+
+          RESP="$(curl -fsS -X PATCH \
+            "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$TEAM_ID" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"rootDirectory\":\"$ROOT_DIRECTORY\",\"framework\":\"nextjs\"}")"
+
+          echo "$RESP" | jq .
+          echo "Patched project $PROJECT_ID (team $TEAM_ID): rootDirectory=$ROOT_DIRECTORY framework=nextjs"

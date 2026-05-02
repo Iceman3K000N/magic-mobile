@@ -1,10 +1,13 @@
-import path from "path";
 import type { NextConfig } from "next";
 import { buildConnectSrc } from "./lib/csp-connect-src";
 
 const nextConfig: NextConfig = {
+  /**
+   * Monorepo: parent + app each have a lockfile; Next otherwise guesses the wrong
+   * workspace root. Use the app directory (this folder), works on Vercel + local.
+   */
   turbopack: {
-    root: path.resolve(__dirname),
+    root: ".",
   },
   reactStrictMode: true,
   /** Avoid `redirect()` in `app/magichub/page.tsx` — on Next 16 + Turbopack it surfaces as a fake “render error” and breaks `/magichub`. */

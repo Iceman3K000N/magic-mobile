@@ -42,6 +42,8 @@ import { HubCard, hubBtnGhost, hubBtnPrimary, hubInputClass } from "@/components
 import { WorkflowStepper } from "@/components/magichub/workflow/WorkflowStepper";
 import { SignaturePad } from "@/components/magichub/workflow/SignaturePad";
 import { PlanComparisonCards } from "@/components/magichub/MagicMobilePlans";
+import { useManagerPin } from "@/components/magichub/ManagerPinGate";
+import { canUseManagerPin } from "@/lib/magichub-pin-api-auth";
 
 const BRANDS = ["Apple", "Samsung", "Google", "Motorola", "Other"] as const;
 
@@ -74,6 +76,7 @@ export function SaleWorkflowClient({
   contractors,
   canManage,
   onRefresh,
+  authEmail = null,
 }: {
   step: number;
   resumeQuoteId?: string | null;
@@ -84,6 +87,8 @@ export function SaleWorkflowClient({
   contractors: ProfileRecord[];
   canManage: boolean;
   onRefresh: () => void;
+  /** For CEO (email-based PIN); profile.role may not be admin. */
+  authEmail?: string | null;
 }) {
   const router = useRouter();
   /** Same initial state on server + client avoids hydration mismatch (sessionStorage only exists on client). */
@@ -104,6 +109,7 @@ export function SaleWorkflowClient({
   const [promoOverride, setPromoOverride] = useState(false);
   const [saleCompletedId, setSaleCompletedId] = useState<string | null>(null);
   const [idLinkSending, setIdLinkSending] = useState(false);
+  const { ensureUnlocked } = useManagerPin();
 
   const setDraft = useCallback((next: SaleWorkflowDraft | ((prev: SaleWorkflowDraft) => SaleWorkflowDraft)) => {
     setDraftState((prev) => {
@@ -396,6 +402,9 @@ export function SaleWorkflowClient({
     if (netProfitAfterCommission < 0 && !(profile.role === "admin" && promoOverride)) {
       setMsg("Promo/discount blocked: net profit would fall below $0.");
       return;
+    }
+    if (canUseManagerPin(profile.role, authEmail ?? undefined)) {
+      if (!(await ensureUnlocked({ forceVerify: true }))) return;
     }
     setFinishing(true);
     setMsg(null);

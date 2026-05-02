@@ -8,6 +8,7 @@ import { uploadMagichubFile } from "@/lib/magichub-storage";
 import { notifyAdminsNewTeamMemberAwaitingApproval } from "@/lib/magichub-notify-admins";
 import { CONSULTANT_REQUEST_STATUS_LABELS, type HubConsultantRequest } from "@/lib/magichub-team";
 import { HubCard, hubBtnGhost, hubBtnPrimary, hubInputClass } from "@/components/magichub/MagicHubShell";
+import { useManagerPin } from "@/components/magichub/ManagerPinGate";
 import type { SaleRecord } from "@/lib/magichub";
 
 function errMsg(e: unknown) {
@@ -31,6 +32,7 @@ export function ManagerTeamManagement({
   sales: SaleRecord[];
   onRefresh: () => void;
 }) {
+  const { ensureUnlocked } = useManagerPin();
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [idFile, setIdFile] = useState<File | null>(null);
@@ -91,6 +93,7 @@ export function ManagerTeamManagement({
 
   async function submitRequest(e: React.FormEvent) {
     e.preventDefault();
+    if (!(await ensureUnlocked())) return;
     if (!form.full_name.trim()) return setMsg("Full name is required.");
     if (!form.cash_app_tag.trim()) return setMsg("Cash App tag is required for consultant payouts.");
     setSaving(true);
@@ -144,20 +147,22 @@ export function ManagerTeamManagement({
   }
 
   const suspend = useCallback(async (r: HubConsultantRequest) => {
+    if (!(await ensureUnlocked())) return;
     if (!confirm(`Deactivate ${r.full_name}?`)) return;
     const { error } = await supabase.from("hub_consultant_requests").update({ status: "suspended" }).eq("id", r.id).eq("manager_id", managerId);
     if (error) return alert(error.message);
     await insertHubAuditLog(supabase, managerId, { action: "manager_suspended_consultant", entity_type: "hub_consultant_requests", entity_id: r.id });
     onRefresh();
-  }, [managerId, onRefresh, supabase]);
+  }, [ensureUnlocked, managerId, onRefresh, supabase]);
 
   const requestRemoval = useCallback(async (r: HubConsultantRequest) => {
+    if (!(await ensureUnlocked())) return;
     if (!confirm("Request removal? Admin will finalize.")) return;
     const { error } = await supabase.from("hub_consultant_requests").update({ status: "removed" }).eq("id", r.id).eq("manager_id", managerId);
     if (error) return alert(error.message);
     await insertHubAuditLog(supabase, managerId, { action: "manager_requested_removal", entity_type: "hub_consultant_requests", entity_id: r.id });
     onRefresh();
-  }, [managerId, onRefresh, supabase]);
+  }, [ensureUnlocked, managerId, onRefresh, supabase]);
 
   return (
     <div className="space-y-6">

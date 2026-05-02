@@ -8,6 +8,7 @@ import type { UserRole } from "@/lib/magic-mobile";
 const roleBadge = (r: UserRole) => {
   if (r === "admin") return { label: "Admin", className: "bg-amber-500/20 text-amber-200 ring-amber-500/40" };
   if (r === "sale_manager") return { label: "Manager", className: "bg-sky-500/20 text-sky-200 ring-sky-500/40" };
+  if (r === "store_lead") return { label: "Store Lead", className: "bg-violet-500/20 text-violet-200 ring-violet-500/40" };
   return { label: "Consultant", className: "bg-emerald-500/20 text-emerald-200 ring-emerald-500/40" };
 };
 

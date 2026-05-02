@@ -26,6 +26,7 @@ import {
   planMonthlyRecurringAmount,
 } from "@/lib/magichub-catalog";
 import { insertHubAuditLog } from "@/lib/magichub-audit";
+import { canUseManagerPin } from "@/lib/magichub-pin-api-auth";
 import { aggregateCommissionPayoutDashboard, type CommissionPayoutDashboardMetrics } from "@/lib/magichub-commission-payout";
 import {
   DEFAULT_PHONE_PRICING_CATALOG,
@@ -83,6 +84,10 @@ import {
   TasksSection,
 } from "@/components/magichub/hubModules";
 import { SaleWorkflowClient } from "@/components/magichub/SaleWorkflowClient";
+import { ManagerPinProvider, ProfilePinHelp, useManagerPin } from "@/components/magichub/ManagerPinGate";
+
+/** Avoid pulling arbitrary columns from `profiles` (PIN hashes live in a separate table). */
+const PROFILE_COLUMNS = "id, full_name, phone, role, is_active, referral_code, created_at, team_manager_id";
 
 export type MagicHubView =
   | "login"
@@ -212,6 +217,7 @@ export default function MagicHubClient({
   const isCeo = (authEmail ?? "").toLowerCase() === ceoEmail;
   const isAdmin = profile?.role === "admin" || isCeo;
   const canManage = profile?.role === "admin" || profile?.role === "sale_manager" || isCeo;
+  const pinProviderEnabled = Boolean(supabase && canUseManagerPin(profile?.role, authEmail ?? undefined));
 
   const navForRole = useMemo(() => {
     if (!profile) return [];
@@ -225,7 +231,7 @@ export default function MagicHubClient({
         { href: "/magichub/profile", label: "Profile" },
       ];
     }
-    if (profile.role === "contractor") {
+    if (profile.role === "contractor" || profile.role === "store_lead") {
       return [
         { href: "/magichub/dashboard", label: "Dashboard" },
         { href: "/magichub/sale/1", label: "Start Sale" },
@@ -264,7 +270,7 @@ export default function MagicHubClient({
   const mobileNavForRole = useMemo(() => {
     if (!profile) return [];
     if (profile.role === "sale_manager" && !isAdmin) return [];
-    if (profile.role === "contractor") {
+    if (profile.role === "contractor" || profile.role === "store_lead") {
       return [
         { href: "/magichub/dashboard", label: "Home", shortLabel: "Home", icon: "⌂" },
         { href: "/magichub/sale/1", label: "Start Sale", shortLabel: "Sale", icon: "+" },
@@ -290,7 +296,7 @@ export default function MagicHubClient({
 
     let profileRow: ProfileRecord | null = null;
     try {
-      const { data: p, error: pe } = await supabase.from("profiles").select("*").eq("id", authUserId).maybeSingle();
+      const { data: p, error: pe } = await supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", authUserId).maybeSingle();
       if (pe) throw pe;
       profileRow = p as ProfileRecord | null;
       if (!profileRow) {
@@ -320,8 +326,8 @@ export default function MagicHubClient({
 
       const { data: profData, error: profErr } = await supabase
         .from("profiles")
-        .select("*")
-        .in("role", ["contractor", "sale_manager", "admin"])
+        .select(PROFILE_COLUMNS)
+        .in("role", ["contractor", "sale_manager", "admin", "store_lead"])
         .order("full_name", { ascending: true });
       if (profErr) throw profErr;
       setContractors((profData as ProfileRecord[]) ?? []);
@@ -665,7 +671,7 @@ export default function MagicHubClient({
   }
 
   if (
-    profile.role === "contractor" &&
+    (profile.role === "contractor" || profile.role === "store_lead") &&
     ["admin", "adminTeam", "reports", "commissions", "commissionPayout", "inventory", "settings", "queue", "documents"].includes(view)
   ) {
     return (
@@ -794,13 +800,19 @@ export default function MagicHubClient({
   })();
 
   /** Matches contractor portal: admins show as CEO, not generic “Admin”. */
-  const roleLabel = isAdmin ? "CEO" : profile.role === "sale_manager" ? "Sale Manager" : "Sale Agent";
+  const roleLabel = isAdmin
+    ? "CEO"
+    : profile.role === "sale_manager"
+      ? "Sale Manager"
+      : profile.role === "store_lead"
+        ? "Store Lead"
+        : "Sale Agent";
   const managerPanelView = view === "manager" || view === "team" || view === "profile" || view === "managerInventory";
   const missingTeamApprovalsTable =
     view === "adminTeam" && (secondaryError ?? "").toLowerCase().includes("hub_consultant_requests");
 
   if (profile.role === "sale_manager" && !isAdmin && managerPanelView) {
-    return (
+    const managerChrome = (
       <ManagerHubChrome
         userRole={profile.role}
         userName={profile.full_name}
@@ -845,6 +857,7 @@ export default function MagicHubClient({
             <p className="mt-2 text-sm text-zinc-300">{profile.full_name}</p>
             <p className="text-xs text-zinc-500">{roleLabel}</p>
             <p className="mt-1 font-mono text-[11px] text-zinc-600">{profile.id}</p>
+            <ProfilePinHelp enabled={pinProviderEnabled} />
             <button type="button" className={`${hubBtnGhost} mt-6`} onClick={() => void handleLogout()}>
               Sign out
             </button>
@@ -852,6 +865,13 @@ export default function MagicHubClient({
         ) : null}
         {view === "managerInventory" ? <ManagerInventoryReadonly inventory={inventory} /> : null}
       </ManagerHubChrome>
+    );
+    return pinProviderEnabled ? (
+      <ManagerPinProvider enabled supabase={supabase}>
+        {managerChrome}
+      </ManagerPinProvider>
+    ) : (
+      managerChrome
     );
   }
 
@@ -877,6 +897,19 @@ export default function MagicHubClient({
         <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           {secondaryError}
         </div>
+      ) : null}
+
+      {view === "profile" ? (
+        <HubCard>
+          <h2 className="text-lg font-semibold text-white">Profile</h2>
+          <p className="mt-2 text-sm text-zinc-300">{profile.full_name}</p>
+          <p className="text-xs text-zinc-500">{roleLabel}</p>
+          <p className="mt-1 font-mono text-[11px] text-zinc-600">{profile.id}</p>
+          <ProfilePinHelp enabled={pinProviderEnabled} />
+          <button type="button" className={`${hubBtnGhost} mt-6`} onClick={() => void handleLogout()}>
+            Sign out
+          </button>
+        </HubCard>
       ) : null}
 
       {missingTeamApprovalsTable ? (
@@ -912,6 +945,7 @@ export default function MagicHubClient({
           leads={leads}
           contractors={contractors}
           canManage={canManage}
+          authEmail={authEmail}
           onRefresh={() => void loadData()}
         />
       ) : null}
@@ -920,7 +954,7 @@ export default function MagicHubClient({
         <DashboardSection
           canManage={canManage}
           isManager={profile.role === "sale_manager" && !isAdmin}
-          isConsultant={profile.role === "contractor"}
+          isConsultant={profile.role === "contractor" || profile.role === "store_lead"}
           sales={sales}
           commissions={commissions}
           contractors={contractors}
@@ -1110,7 +1144,13 @@ export default function MagicHubClient({
     </MagicHubShell>
   );
 
-  return shell;
+  return pinProviderEnabled ? (
+    <ManagerPinProvider enabled supabase={supabase}>
+      {shell}
+    </ManagerPinProvider>
+  ) : (
+    shell
+  );
 }
 
 function DashboardSection({
@@ -2006,7 +2046,7 @@ function SalesSection({
           <span className="text-xs text-zinc-500">Customer (lead)</span>
           <select className={`mt-1 ${hubInputClass}`} value={leadId} onChange={(e) => applyLead(e.target.value)}>
             <option value="">— Optional —</option>
-            {(profile.role === "contractor" ? myLeads : leads).map((l) => (
+            {(profile.role === "contractor" || profile.role === "store_lead" ? myLeads : leads).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.customer_name} · {l.customer_phone}
               </option>
@@ -2233,6 +2273,7 @@ function AdminSection({
   actorId: string;
   onRefresh: () => void;
 }) {
+  const { ensureUnlocked } = useManagerPin();
   const [filter, setFilter] = useState<string>("all");
   const [phoneRows, setPhoneRows] = useState<PhonePricingEntry[]>(defaultPricingOverrides().phoneRows);
   const [planRows, setPlanRows] = useState<PlanPricingEntry[]>(defaultPricingOverrides().planRows);
@@ -2277,6 +2318,7 @@ function AdminSection({
   }, [supabase]);
 
   async function savePricingOverrides() {
+    if (!(await ensureUnlocked())) return;
     try {
       const { data: row } = await supabase.from("hub_pricing_config").select("payload").eq("id", "default").maybeSingle();
       const before = mergePricingPayload(row?.payload);
@@ -2296,6 +2338,7 @@ function AdminSection({
   }
 
   async function togglePaid(c: CommissionRecord, paid: boolean) {
+    if (!(await ensureUnlocked())) return;
     const { error } = await supabase
       .from("commissions")
       .update({
@@ -2311,6 +2354,7 @@ function AdminSection({
   }
 
   async function selectPromoPreset(code: string) {
+    if (!(await ensureUnlocked())) return;
     const preset = presetToPromoDraft(code);
     if (!preset) return;
     setPromoDraft(preset);
@@ -2323,6 +2367,7 @@ function AdminSection({
   }
 
   async function savePromo(status: "active" | "draft") {
+    if (!(await ensureUnlocked())) return;
     if (!promoDraft.code.trim()) {
       alert("Promo code is required.");
       return;

@@ -994,7 +994,11 @@ export function CommissionPayoutSection({
   }, []);
 
   const consultantReady = useMemo(
-    () => readyRows.filter((c) => roleById.get(c.contractor_id) === "contractor"),
+    () =>
+      readyRows.filter((c) => {
+        const r = roleById.get(c.contractor_id);
+        return r === "contractor" || r === "store_lead";
+      }),
     [readyRows, roleById],
   );
   const managerReady = useMemo(

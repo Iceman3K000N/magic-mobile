@@ -160,7 +160,7 @@ export function presetToPromoDraft(code: string): PromoDraft | null {
 
 export function promoVisibleToRole(promo: Pick<PromoCodeRecord, "manager_only">, role: ProfileRecord["role"]) {
   if (!promo.manager_only) return true;
-  return role === "sale_manager" || role === "admin";
+  return role === "sale_manager" || role === "admin" || role === "store_lead";
 }
 
 export function promoIsActiveNow(promo: PromoCodeRecord) {

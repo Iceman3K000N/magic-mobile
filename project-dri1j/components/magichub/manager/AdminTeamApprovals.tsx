@@ -10,6 +10,7 @@ import {
   type HubConsultantRequest,
 } from "@/lib/magichub-team";
 import { HubCard, hubBtnGhost, hubBtnPrimary, hubInputClass } from "@/components/magichub/MagicHubShell";
+import { useManagerPin } from "@/components/magichub/ManagerPinGate";
 
 function managerName(contractors: ProfileRecord[], id: string) {
   return contractors.find((c) => c.id === id)?.full_name ?? id.slice(0, 8);
@@ -32,6 +33,7 @@ export function AdminTeamApprovals({
   actorId: string;
   onRefresh: () => void;
 }) {
+  const { ensureUnlocked } = useManagerPin();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [profileUuid, setProfileUuid] = useState("");
@@ -65,6 +67,7 @@ export function AdminTeamApprovals({
   }
 
   async function approve(r: HubConsultantRequest) {
+    if (!(await ensureUnlocked())) return;
     const uuid = profileUuid.trim() || r.linked_profile_id || "";
     if (!uuid) {
       alert("Profile UUID is required before approval.");
@@ -112,6 +115,7 @@ export function AdminTeamApprovals({
   }
 
   async function reject(r: HubConsultantRequest) {
+    if (!(await ensureUnlocked())) return;
     const reason = rejectReason.trim();
     if (!reason) {
       alert("Rejection reason is required.");
@@ -147,6 +151,7 @@ export function AdminTeamApprovals({
   }
 
   async function requestCorrection(r: HubConsultantRequest) {
+    if (!(await ensureUnlocked())) return;
     const reason = correctionReason.trim();
     if (!reason) {
       alert("Correction reason is required.");
@@ -181,6 +186,7 @@ export function AdminTeamApprovals({
   }
 
   async function restoreConsultant(r: HubConsultantRequest) {
+    if (!(await ensureUnlocked())) return;
     setBusyId(r.id);
     try {
       const now = new Date().toISOString();
@@ -206,6 +212,7 @@ export function AdminTeamApprovals({
   }
 
   async function reassignConsultant(r: HubConsultantRequest) {
+    if (!(await ensureUnlocked())) return;
     if (!r.linked_profile_id) return alert("Link a profile UUID before reassignment.");
     if (!reassignManagerId) return alert("Select a manager.");
     setBusyId(r.id);
@@ -235,6 +242,7 @@ export function AdminTeamApprovals({
   }
 
   async function removeUser(r: HubConsultantRequest) {
+    if (!(await ensureUnlocked())) return;
     if (!confirm("Fully remove this consultant request and linked profile?")) return;
     setBusyId(r.id);
     try {

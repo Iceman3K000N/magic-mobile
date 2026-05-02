@@ -6,7 +6,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
   phone text,
-  role text not null default 'contractor' check (role in ('admin', 'sale_manager', 'contractor')),
+  role text not null default 'contractor' check (role in ('admin', 'sale_manager', 'contractor', 'store_lead')),
   is_active boolean not null default true,
   referral_code text unique,
   created_at timestamptz not null default now()
@@ -80,7 +80,7 @@ alter table public.leads add column if not exists deleted_by uuid references pub
 alter table public.commissions add column if not exists deleted_at timestamptz;
 alter table public.commissions add column if not exists deleted_by uuid references public.profiles(id);
 alter table public.profiles drop constraint if exists profiles_role_check;
-alter table public.profiles add constraint profiles_role_check check (role in ('admin', 'sale_manager', 'contractor'));
+alter table public.profiles add constraint profiles_role_check check (role in ('admin', 'sale_manager', 'contractor', 'store_lead'));
 
 alter table public.profiles enable row level security;
 alter table public.leads enable row level security;

@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "sale_manager" | "contractor";
+export type UserRole = "admin" | "sale_manager" | "contractor" | "store_lead";
 
 export type LeadStatus = "New" | "Contacted" | "Closed" | "Lost";
 

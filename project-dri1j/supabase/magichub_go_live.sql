@@ -473,7 +473,7 @@ begin
   if v_active is not true then
     raise exception 'Account inactive';
   end if;
-  if v_role not in ('contractor', 'admin', 'sale_manager') then
+  if v_role not in ('contractor', 'admin', 'sale_manager', 'store_lead') then
     raise exception 'Forbidden';
   end if;
 
